@@ -1,16 +1,26 @@
 import os
 import requests
+import streamlit as st
 from dotenv import load_dotenv
 
 load_dotenv()
 
-MONDAY_API_KEY = os.getenv("MONDAY_API_KEY")
-DEALS_BOARD_ID = os.getenv("DEALS_BOARD_ID")
-WORK_BOARD_ID = os.getenv("WORK_BOARD_ID")
+def get_secret(key):
+    try:
+        return st.secrets[key]
+    except Exception:
+        return os.getenv(key)
+
+MONDAY_API_KEY = get_secret("MONDAY_API_KEY")
+DEALS_BOARD_ID = get_secret("DEALS_BOARD_ID")
+WORK_BOARD_ID = get_secret("WORK_BOARD_ID")
 
 MONDAY_URL = "https://api.monday.com/v2"
 
 def fetch_board(board_id):
+    if not MONDAY_API_KEY:
+        return {"errors": [{"message": "Missing MONDAY_API_KEY"}]}
+
     headers = {
         "Authorization": MONDAY_API_KEY,
         "Content-Type": "application/json",
