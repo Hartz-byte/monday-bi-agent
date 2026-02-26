@@ -21,6 +21,10 @@ def resolve_column_map(deals_meta, work_meta):
             mapping["probability"] = col["id"]
         if "deal stage" in title:
             mapping["stage"] = col["id"]
+        if "tentative close date" in title:
+            mapping["tentative_close"] = col["id"]
+        if "close date" in title:
+            mapping["close"] = col["id"]
 
     # Work Order Board Map
     for col in work_meta:
@@ -57,9 +61,18 @@ def handle_tool_call(tool_name, args, trace_log):
         trace_log.append(f"Resolved Column Mapping: {column_map}")
 
         sector = args.get("sector")
+        time_period = args.get("time_period")
+
         if not sector:
             return {"final_answer": "Please specify a sector to analyze."}
 
-        return run_business_summary(deals_df, work_df, column_map, sector, trace_log)
+        return run_business_summary(
+            deals_df,
+            work_df,
+            column_map,
+            sector,
+            trace_log,
+            time_period=time_period
+        )
 
     return {"final_answer": "Unknown tool call."}

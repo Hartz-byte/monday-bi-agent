@@ -51,16 +51,23 @@ if user_input:
             "type": "function",
             "function": 
                 {
-                "name": "run_bi_query",
-                "description": "Run a business intelligence query across Deals and Work Orders boards.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "sector": {"type": "string", "description": "The business sector/industry to analyze (e.g. EdTech, Manufacturing)"},
-                    },
-                    "required": ["sector"]
+                    "name": "run_bi_query",
+                    "description": "Run a business intelligence query across Deals and Work Orders boards.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "sector": {
+                                "type": "string",
+                                "description": "The business sector to analyze"
+                            },
+                            "time_period": {
+                                "type": "string",
+                                "description": "Time filter like 'this quarter', 'last quarter', or 'Q2 2025'"
+                            }
+                        },
+                        "required": ["sector"]
+                    }
                 }
-            }
         }
     ]
 

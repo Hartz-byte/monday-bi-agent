@@ -1,6 +1,55 @@
 import pandas as pd
+import re
+from datetime import datetime
 
-def run_business_summary(deals_df, work_df, column_map, sector, trace_log):
+def apply_quarter_filter(df, date_col, time_period, trace_log):
+    if not time_period or date_col not in df.columns:
+        return df
+
+    df = df.copy()
+    df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
+
+    now = datetime.now()
+    current_year = now.year
+    current_quarter = (now.month - 1) // 3 + 1
+
+    trace_log.append(f"Applying time filter: {time_period}")
+
+    # --- THIS QUARTER ---
+    if time_period.lower() == "this quarter":
+        filtered = df[
+            (df[date_col].dt.year == current_year) &
+            (df[date_col].dt.quarter == current_quarter)
+        ]
+        return filtered
+
+    # --- LAST QUARTER ---
+    if time_period.lower() == "last quarter":
+        last_quarter = current_quarter - 1 or 4
+        year = current_year if current_quarter != 1 else current_year - 1
+
+        filtered = df[
+            (df[date_col].dt.year == year) &
+            (df[date_col].dt.quarter == last_quarter)
+        ]
+        return filtered
+
+    # --- QX YYYY ---
+    match = re.match(r"q([1-4])\s*(\d{4})", time_period.lower())
+    if match:
+        q = int(match.group(1))
+        y = int(match.group(2))
+
+        filtered = df[
+            (df[date_col].dt.year == y) &
+            (df[date_col].dt.quarter == q)
+        ]
+        return filtered
+
+    # If unknown format → no filtering
+    return df
+
+def run_business_summary(deals_df, work_df, column_map, sector, trace_log, time_period=None):
     """
     Computes a deep BI summary including Deals pipeline, Probability, Stages, and Work Order financials.
     """
@@ -23,6 +72,24 @@ def run_business_summary(deals_df, work_df, column_map, sector, trace_log):
     # Filter to sector FIRST
     filtered_deals = deals_df[deals_df[sector_col] == sector.lower().strip()].copy()
     
+    # Determine which date column to use
+    date_col = None
+    if "tentative close date" in str(column_map).lower():
+        date_col = column_map.get("tentative_close")
+    elif "close date" in str(column_map).lower():
+        date_col = column_map.get("close")
+
+    # Fallback manually (since you know column ID)
+    if not date_col:
+        date_col = "date_mm0yfzt5"  # Tentative Close Date
+
+    filtered_deals = apply_quarter_filter(
+        filtered_deals,
+        date_col,
+        time_period,
+        trace_log
+    )
+
     if filtered_deals.empty:
         return {"final_answer": f"No active deals found for the '{sector}' sector."}
 
@@ -31,8 +98,32 @@ def run_business_summary(deals_df, work_df, column_map, sector, trace_log):
     raw_values = filtered_deals[value_col].astype(str).str.strip()
     missing_count = ((raw_values == "") | (raw_values == "nan") | (raw_values == "None")).sum()
 
-    # Probability & Stage Insights
-    open_deals = filtered_deals[filtered_deals[status_col] != "closed"].copy()
+    # Define terminal / non-pipeline stage keywords
+    terminal_stage_keywords = [
+        "lost",
+        "completed",
+        "not relevant",
+        "on hold"
+    ]
+
+    # Filter active pipeline deals
+    open_deals = filtered_deals[
+        (filtered_deals[status_col] != "closed")
+    ].copy()
+
+    # Exclude terminal stages from pipeline
+    if stage_col in open_deals.columns:
+        open_deals[stage_col] = open_deals[stage_col].fillna("").str.lower()
+
+        open_deals = open_deals[
+            ~open_deals[stage_col].apply(
+                lambda x: any(keyword in x for keyword in terminal_stage_keywords)
+            )
+        ]
+
+        trace_log.append(
+            f"Excluded terminal stages from pipeline analysis: {terminal_stage_keywords}"
+        )
     
     high_prob_count = 0
     if prob_col in open_deals.columns:
@@ -79,8 +170,9 @@ def run_business_summary(deals_df, work_df, column_map, sector, trace_log):
     receivable = work_filtered[receivable_col].sum()
 
     # 4. Construct Executive Summary
+    period_label = f" ({time_period.upper()})" if time_period else ""
     summary = (
-        f"### 📊 Executive Summary: {sector.upper()} SECTOR\n\n"
+        f"### 📊 Executive Summary: {sector.upper()} SECTOR{period_label}\n\n"
         f"**Pipeline Insights:**\n"
         f"- **Total Open Deals:** {len(open_deals)}\n"
         f"- **Total Pipeline Value:** ₹{total_pipeline:,.2f}\n"
