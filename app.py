@@ -5,9 +5,32 @@ from groq import Groq
 from tools import handle_tool_call
 from dotenv import load_dotenv
 
+# Load local .env only once
 load_dotenv()
 
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+def get_secret(key):
+    """
+    Safely fetch secret from:
+    1. Streamlit Cloud secrets
+    2. Local environment (.env)
+    """
+    try:
+        return st.secrets[key]
+    except Exception:
+        return os.getenv(key)
+
+groq_key = get_secret("GROQ_API_KEY")
+monday_key = get_secret("MONDAY_API_KEY")
+
+if not groq_key:
+    st.error("Missing GROQ_API_KEY")
+    st.stop()
+
+if not monday_key:
+    st.error("Missing MONDAY_API_KEY")
+    st.stop()
+
+client = Groq(api_key=groq_key)
 
 st.set_page_config(page_title="Monday BI Agent", layout="wide")
 
