@@ -11,7 +11,6 @@ WORK_BOARD_ID = os.getenv("WORK_BOARD_ID")
 MONDAY_URL = "https://api.monday.com/v2"
 
 def fetch_board(board_id):
-
     headers = {
         "Authorization": MONDAY_API_KEY,
         "Content-Type": "application/json",

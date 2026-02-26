@@ -15,7 +15,7 @@ def apply_quarter_filter(df, date_col, time_period, trace_log):
 
     trace_log.append(f"Applying time filter: {time_period}")
 
-    # --- THIS QUARTER ---
+    # THIS QUARTER
     if time_period.lower() == "this quarter":
         filtered = df[
             (df[date_col].dt.year == current_year) &
@@ -23,7 +23,7 @@ def apply_quarter_filter(df, date_col, time_period, trace_log):
         ]
         return filtered
 
-    # --- LAST QUARTER ---
+    # LAST QUARTER
     if time_period.lower() == "last quarter":
         last_quarter = current_quarter - 1 or 4
         year = current_year if current_quarter != 1 else current_year - 1
@@ -34,7 +34,7 @@ def apply_quarter_filter(df, date_col, time_period, trace_log):
         ]
         return filtered
 
-    # --- QX YYYY ---
+    # QX YYYY
     match = re.match(r"q([1-4])\s*(\d{4})", time_period.lower())
     if match:
         q = int(match.group(1))
@@ -53,7 +53,7 @@ def run_business_summary(deals_df, work_df, column_map, sector, trace_log, time_
     """
     Computes a deep BI summary including Deals pipeline, Probability, Stages, and Work Order financials.
     """
-    # 1. Resolve Column Names
+    # Resolve Column Names
     sector_col = column_map.get("sector", "text_mm0y8szr")
     value_col = column_map.get("value", "numeric_mm0ynd8h")
     status_col = column_map.get("status", "color_mm0ywp8m")
@@ -65,7 +65,7 @@ def run_business_summary(deals_df, work_df, column_map, sector, trace_log, time_
     receivable_col = column_map.get("receivable", "numeric_mm0y8t8m")
     wo_sector_col = column_map.get("wo_sector", "color_mm0y9q4z")
 
-    # 2. Deals Filtering & Data Quality
+    # Deals Filtering & Data Quality
     deals_df[sector_col] = deals_df[sector_col].fillna("").str.lower().str.strip()
     deals_df[status_col] = deals_df[status_col].fillna("").str.lower().str.strip()
     
@@ -79,9 +79,9 @@ def run_business_summary(deals_df, work_df, column_map, sector, trace_log, time_
     elif "close date" in str(column_map).lower():
         date_col = column_map.get("close")
 
-    # Fallback manually (since you know column ID)
+    # Fallback manually
     if not date_col:
-        date_col = "date_mm0yfzt5"  # Tentative Close Date
+        date_col = "date_mm0yfzt5"
 
     filtered_deals = apply_quarter_filter(
         filtered_deals,
@@ -93,8 +93,7 @@ def run_business_summary(deals_df, work_df, column_map, sector, trace_log, time_
     if filtered_deals.empty:
         return {"final_answer": f"No active deals found for the '{sector}' sector."}
 
-    # Data Quality: Count truly missing/empty values in filtered set BEFORE conversion
-    # We check for empty strings, whitespace-only, and NaN
+    # Count missing/empty values in filtered set BEFORE conversion
     raw_values = filtered_deals[value_col].astype(str).str.strip()
     missing_count = ((raw_values == "") | (raw_values == "nan") | (raw_values == "None")).sum()
 
@@ -148,8 +147,7 @@ def run_business_summary(deals_df, work_df, column_map, sector, trace_log, time_
     total_pipeline = round(float(open_deals[value_col].sum()), 2)
     avg_size = round(total_pipeline / len(open_deals), 2) if not open_deals.empty else 0
 
-    # 3. Work Orders Financials (Filtered by Sector)
-    # Check both potential sector columns in Work Orders
+    # Work Orders Financials (Filtered by Sector)
     if wo_sector_col in work_df.columns:
         work_df[wo_sector_col] = work_df[wo_sector_col].fillna("").str.lower().str.strip()
         work_filtered = work_df[work_df[wo_sector_col] == sector.lower().strip()].copy()
@@ -169,7 +167,7 @@ def run_business_summary(deals_df, work_df, column_map, sector, trace_log, time_
     total_collected = work_filtered[collected_col].sum()
     receivable = work_filtered[receivable_col].sum()
 
-    # 4. Construct Executive Summary
+    # Construct Executive Summary
     period_label = f" ({time_period.upper()})" if time_period else ""
     summary = (
         f"### 📊 Executive Summary: {sector.upper()} SECTOR{period_label}\n\n"

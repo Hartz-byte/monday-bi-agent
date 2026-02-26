@@ -1,7 +1,6 @@
 import pandas as pd
 
 def clean_items(raw_json, trace_log):
-
     if "errors" in raw_json:
         trace_log.append(f"Monday API Error: {raw_json['errors']}")
         return None
