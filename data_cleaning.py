@@ -56,7 +56,10 @@ def clean_items(raw_json, trace_log):
         all_cleaned.append(df_board)
 
     if not all_cleaned:
-        return None
+        return None, {}
 
     final_df = pd.concat(all_cleaned, ignore_index=True)
-    return final_df
+    
+    col_metadata = boards[0].get("columns", []) if boards else []
+    
+    return final_df, col_metadata

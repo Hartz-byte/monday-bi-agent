@@ -18,29 +18,34 @@ if "messages" not in st.session_state:
         {
             "role": "system",
             "content": (
-                "You are a Business Intelligence AI agent. Ask clarifying questions if required parameters are missing. Call tools only when enough information is available.\n"
-                "When needed, call the appropriate function tool.\n"
-                "After receiving tool results, respond in plain English.\n"
-                "Do not call any additional functions.\n"
-                "All monetary values are in INR.\n"
-                "Base answers strictly on tool outputs."
+                "You are a Business Intelligence AI agent. Ask clarifying questions if required parameters are missing.\n"
+                "When needed, call 'run_bi_query' with the appropriate sector.\n"
+                "If the user asks follow-up questions (e.g., 'and for manufacturing?'), use the context of previous queries.\n"
+                "All monetary values are in INR. Base answers strictly on tool outputs."
             )
         }
     ]
+
+if "last_sector" not in st.session_state:
+    st.session_state.last_sector = None
 
 if "trace" not in st.session_state:
     st.session_state.trace = []
 
 # Display chat history
 for msg in st.session_state.messages:
-    st.chat_message(msg["role"]).write(msg["content"])
+    if msg["role"] != "system":
+        st.chat_message(msg["role"]).write(msg["content"])
 
 user_input = st.chat_input("Ask a founder-level business question...")
 
 if user_input:
-    st.session_state.messages.append({"role": "user", "content": user_input})
+    # Prepare context hint for the LLM
+    context_hint = f" (Context: Last sector discussed was {st.session_state.last_sector})" if st.session_state.last_sector else ""
+    
+    st.session_state.messages.append({"role": "user", "content": user_input + context_hint})
     st.chat_message("user").write(user_input)
-
+    
     tools = [
         {
             "type": "function",
@@ -51,13 +56,9 @@ if user_input:
                 "parameters": {
                     "type": "object",
                     "properties": {
-                    "sector": {"type": "string"},
-                    "time_period": {"type": "string"},
-                    "metric_type": {
-                        "type": "string",
-                        "enum": ["pipeline", "revenue", "work_orders", "summary"]
-                    }
-                    }
+                        "sector": {"type": "string", "description": "The business sector/industry to analyze (e.g. EdTech, Manufacturing)"},
+                    },
+                    "required": ["sector"]
                 }
             }
         }
@@ -81,8 +82,11 @@ if user_input:
         tool_name = tool_call.function.name
         args = json.loads(tool_call.function.arguments)
 
-        result = handle_tool_call(tool_name, args, st.session_state.trace)
+        # Store context
+        if "sector" in args:
+            st.session_state.last_sector = args["sector"]
 
+        result = handle_tool_call(tool_name, args, st.session_state.trace)
         final_text = result["final_answer"]
     else:
         final_text = message.content
