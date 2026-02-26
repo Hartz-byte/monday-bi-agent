@@ -3,12 +3,12 @@ import pandas as pd
 def clean_items(raw_json, trace_log):
     if "errors" in raw_json:
         trace_log.append(f"Monday API Error: {raw_json['errors']}")
-        return None
+        return None, None
 
     boards = raw_json.get("data", {}).get("boards", [])
     if not boards:
         trace_log.append("No boards returned.")
-        return None
+        return None, None
 
     all_cleaned = []
 

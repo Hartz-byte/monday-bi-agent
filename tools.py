@@ -49,7 +49,8 @@ def handle_tool_call(tool_name, args, trace_log):
         work_df, work_meta = clean_items(raw_work, trace_log)
 
         if deals_df is None or work_df is None:
-            return {"final_answer": "Failed to fetch necessary data from Monday.com boards."}
+            trace_log.append("Data fetch failed.")
+            return {"final_answer": "Failed to fetch necessary data from Monday.com boards. Check API keys and board IDs."}
 
         column_map = resolve_column_map(deals_meta, work_meta)
         trace_log.append(f"Resolved Column Mapping: {column_map}")
